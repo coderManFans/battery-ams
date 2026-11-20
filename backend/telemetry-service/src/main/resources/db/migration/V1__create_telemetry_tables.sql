@@ -1,0 +1,36 @@
+CREATE TABLE telemetry_reading (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ tenant_id BIGINT NOT NULL,
+ battery_code VARCHAR(64) NOT NULL,
+ reported_at DATETIME(3) NOT NULL,
+ soc DECIMAL(5,2),
+ soh DECIMAL(5,2),
+ voltage DECIMAL(8,3),
+ current_amp DECIMAL(8,3),
+ temperature_c DECIMAL(6,2),
+ cycle_count INT,
+ source VARCHAR(32) NOT NULL DEFAULT 'SIMULATOR',
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ KEY idx_telemetry_battery_time(tenant_id,battery_code,reported_at),
+ KEY idx_telemetry_time(tenant_id,reported_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE telemetry_alarm (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ tenant_id BIGINT NOT NULL,
+ alarm_no VARCHAR(40) NOT NULL,
+ battery_code VARCHAR(64) NOT NULL,
+ alarm_type VARCHAR(32) NOT NULL,
+ severity VARCHAR(16) NOT NULL,
+ metric_value DECIMAL(12,3),
+ threshold_value DECIMAL(12,3),
+ description VARCHAR(500) NOT NULL,
+ status VARCHAR(16) NOT NULL DEFAULT 'OPEN',
+ reported_at DATETIME(3) NOT NULL,
+ acknowledged_by BIGINT,
+ acknowledged_at DATETIME(3),
+ resolved_at DATETIME(3),
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ UNIQUE KEY uk_alarm_no(tenant_id,alarm_no),
+ KEY idx_alarm_status(tenant_id,status,severity,reported_at),
+ KEY idx_alarm_battery(tenant_id,battery_code,reported_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
