@@ -21,14 +21,38 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
-  rabbitmq:
-    image: rabbitmq:3.13-management
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.3.2
+    container_name: battery-rocketmq-namesrv
+    command: sh mqnamesrv
+    ports:
+      - "9876:9876"
     environment:
-      RABBITMQ_DEFAULT_USER: battery
-      RABBITMQ_DEFAULT_PASS: battery_demo
-    ports: ["5672:5672", "15672:15672"]
-    volumes: [rabbitmq_data:/var/lib/rabbitmq]
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "sh mqadmin clusterList -n localhost:9876 >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.2
+    container_name: battery-rocketmq-broker
+    depends_on:
+      rocketmq-namesrv:
+        condition: service_started
+    command: sh mqbroker -n rocketmq-namesrv:9876 autoCreateTopicEnable=true
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+    environment:
+      NAMESRV_ADDR: rocketmq-namesrv:9876
+      MAX_HEAP_SIZE: 768M
+      HEAP_NEWSIZE: 256M
+    volumes:
+      - rocketmq_data:/home/rocketmq/store
 volumes:
   mysql_data:
   redis_data:
-  rabbitmq_data:
+  rocketmq_data:
