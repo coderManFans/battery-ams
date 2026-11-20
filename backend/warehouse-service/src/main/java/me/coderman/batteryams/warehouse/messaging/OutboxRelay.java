@@ -40,8 +40,13 @@ public class OutboxRelay {
       } catch(Exception ex) {
         String message=ex.getMessage()==null?ex.getClass().getSimpleName():ex.getMessage();
         if(message.length()>950) message=message.substring(0,950);
-        jdbc.update("UPDATE outbox_event SET attempts=attempts+1,next_attempt_at=DATE_ADD(CURRENT_TIMESTAMP(3),INTERVAL LEAST(300,POW(2,LEAST(attempts,8))) SECOND),last_error=? WHERE id=? AND status='PENDING'",
-          message,id);
+        if(attempts+1>=10) {
+          jdbc.update("UPDATE outbox_event SET status='DEAD',attempts=attempts+1,last_error=? WHERE id=? AND status='PENDING'",
+            message,id);
+        } else {
+          jdbc.update("UPDATE outbox_event SET attempts=attempts+1,next_attempt_at=DATE_ADD(CURRENT_TIMESTAMP(3),INTERVAL LEAST(300,POW(2,LEAST(attempts,8))) SECOND),last_error=? WHERE id=? AND status='PENDING'",
+            message,id);
+        }
       }
     }
   }
