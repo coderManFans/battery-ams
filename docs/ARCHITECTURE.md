@@ -11,4 +11,4 @@
 | telemetry-service | BMS 适配、遥测、告警 | telemetry_db |
 | analytics-service | 指标聚合、报表、读模型 | analytics_db |
 
-同步 REST 用于即时查询和命令；Apache RocketMQ 领域事件用于异步协作。事件至少一次投递，消费者必须幂等。生产采用 Outbox + Relay；当前仓储服务使用 RocketMQ Topic `battery-warehouse-events`，标签区分 INBOUND_COMPLETED、OUTBOUND_COMPLETED、TRANSFER_COMPLETED。Outbox 事件至少一次投递，事件包含 eventId/eventType/eventVersion/tenantId/aggregateId，消费者必须按 eventId 幂等。跨服务流程使用 Saga/补偿。每服务独立拥有数据库和凭据，禁止跨服务 SQL JOIN。开发可用一个 MySQL 容器承载多个 schema，生产按服务隔离实例/集群。先交付真实业务垂直切片，不制造空壳服务。
+同步 REST 用于即时查询和命令；Apache RocketMQ 领域事件用于异步协作。事件至少一次投递，消费者必须幂等。生产采用 Outbox + Relay；当前仓储服务使用 RocketMQ Topic `battery-warehouse-events`，标签区分 INBOUND_COMPLETED、OUTBOUND_COMPLETED、TRANSFER_COMPLETED。Outbox 事件至少一次投递，事件包含 eventId/eventType/eventVersion/tenantId/aggregateId，消费者必须按 eventId 幂等。Asset Service 使用 Redis SET NX + TTL 作为第一层并发互斥，并以 asset_db.consumed_event 的 UNIQUE(event_id) 作为最终幂等约束；Redis 锁释放使用 Lua compare-and-delete，避免误删其他消费者持有的锁。Redis 锁不是正确性的唯一保障，Redis 不可用时消费者失败并等待 RocketMQ 重试。跨服务流程使用 Saga/补偿。每服务独立拥有数据库和凭据，禁止跨服务 SQL JOIN。开发可用一个 MySQL 容器承载多个 schema，生产按服务隔离实例/集群。先交付真实业务垂直切片，不制造空壳服务。
