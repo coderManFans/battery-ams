@@ -1,0 +1,14 @@
+# 微服务架构
+
+| 服务 | 职责 | 数据库 |
+|---|---|---|
+| gateway-service | 统一入口、路由、认证接入 | 无业务库 |
+| system-service | 租户、组织、用户、角色、权限 | system_db |
+| asset-service | 电池档案、型号、生命周期、状态历史 | asset_db |
+| warehouse-service | 仓库、库位、库存、出入库、调拨、盘点 | warehouse_db |
+| workorder-service | 工单、任务、派单、执行、审批 | workorder_db |
+| preservation-service | 风险、冻结、巡检、资产轨迹 | preservation_db |
+| telemetry-service | BMS 适配、遥测、告警 | telemetry_db |
+| analytics-service | 指标聚合、报表、读模型 | analytics_db |
+
+同步 REST 用于即时查询和命令；RabbitMQ 领域事件用于异步协作。事件至少一次投递，消费者必须幂等。生产采用 Outbox + Relay；跨服务流程使用 Saga/补偿。每服务独立拥有数据库和凭据，禁止跨服务 SQL JOIN。开发可用一个 MySQL 容器承载多个 schema，生产按服务隔离实例/集群。先交付真实业务垂直切片，不制造空壳服务。
