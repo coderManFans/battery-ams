@@ -24,11 +24,29 @@
 ## API 契约
 | 方法 | 路径 | 用途 |
 |---|---|---|
+| GET | /api/v1/models?tenantId=1 | 查询电池型号 |
+| POST | /api/v1/models | 创建电池型号 |
 | GET | /api/v1/assets?tenantId=1&page=1&size=20 | 分页查询资产 |
 | POST | /api/v1/assets | 创建资产 |
 | GET | /api/v1/assets/{id}?tenantId=1 | 资产详情 |
 | GET | /api/v1/assets/{id}/history?tenantId=1 | 状态变更历史 |
 | POST | /api/v1/assets/{id}/transitions | 生命周期状态迁移 |
+
+### 创建电池型号
+\`\`\`json
+{
+  "tenantId": 1,
+  "modelCode": "LFP-80-TEST",
+  "modelName": "80Ah 磷酸铁锂电池包",
+  "manufacturer": "Demo Battery Co.",
+  "chemistry": "LFP",
+  "nominalVoltage": 48.0,
+  "nominalCapacityAh": 80.0,
+  "ratedEnergyWh": 3840.0,
+  "cycleLife": 2000
+}
+\`\`\`
+预期：HTTP 201。型号编码在租户内唯一。
 
 ### 创建资产
 ```json
@@ -58,18 +76,21 @@
 ## 建议优先生成的测试场景
 | 场景编号 | 场景 | 核心断言 |
 |---|---|---|
+| MODEL-001 | 创建电池型号 | 201；型号可在列表中查到 |
+| MODEL-002 | 重复创建型号编码 | 409 |
 | ASSET-001 | 创建一块新电池 | 201；状态 REGISTERED |
 | ASSET-002 | 相同租户重复 batteryCode | 409；不得产生第二条资产 |
 | ASSET-003 | 相同租户重复 serialNo | 409 |
 | ASSET-004 | SOC 小于 0 或大于 100 | 400 |
-| ASSET-005 | REGISTERED → AVAILABLE | 成功；历史新增一条 |
-| ASSET-006 | REGISTERED → IN_SERVICE | 409；状态和历史均不变化 |
-| ASSET-007 | AVAILABLE → FROZEN → UNDER_REPAIR | 两次迁移成功；历史顺序正确 |
-| ASSET-008 | RETIRED 后尝试恢复 AVAILABLE | 409 |
-| ASSET-009 | 查询不存在的资产详情 | 404 |
-| ASSET-010 | tenant A 查询 tenant B 的资产 | 404，不泄漏资产信息 |
-| ASSET-011 | 分页 size 超过 200 | 400 |
-| ASSET-012 | 资产列表按状态/关键字过滤 | 返回数据符合过滤条件 |
+| ASSET-005 | 使用不存在或停用的型号建档 | 400；不创建资产 |
+| ASSET-006 | REGISTERED → AVAILABLE | 成功；历史新增一条 |
+| ASSET-007 | REGISTERED → IN_SERVICE | 409；状态和历史均不变化 |
+| ASSET-008 | AVAILABLE → FROZEN → UNDER_REPAIR | 两次迁移成功；历史顺序正确 |
+| ASSET-009 | RETIRED 后尝试恢复 AVAILABLE | 409 |
+| ASSET-010 | 查询不存在的资产详情 | 404 |
+| ASSET-011 | tenant A 查询 tenant B 的资产 | 404，不泄漏资产信息 |
+| ASSET-012 | 分页 size 超过 200 | 400 |
+| ASSET-013 | 资产列表按状态/关键字过滤 | 返回数据符合过滤条件 |
 
 ## 端到端业务链路（后续服务完成后）
 电池建档 → 仓库入库 → 入库验收 → 上架 → 出库调拨 → 换电站接收 → 投入运营 → BMS 告警 → 资产冻结 → 创建维修工单 → 维修验收 → 恢复可用 → 重新投放。
