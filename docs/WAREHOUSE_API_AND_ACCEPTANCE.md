@@ -21,6 +21,9 @@
 | POST | /api/v1/stocktakes/{stocktakeNo}/scans | 扫描电池 |
 | POST | /api/v1/stocktakes/{stocktakeNo}/complete | 完成盘点 |
 | GET | /api/v1/stocktakes/{stocktakeNo} | 盘点详情 |
+| POST | /api/v1/stocktakes/{stocktakeNo}/adjustments | 发起盘点差异调整 |
+| POST | /api/v1/stocktakes/adjustments/{adjustmentNo}/approve | 审核通过盘亏 |
+| POST | /api/v1/stocktakes/adjustments/{adjustmentNo}/reject | 驳回盘亏申请 |
 
 ## 入库请求示例
 
@@ -85,7 +88,7 @@
 1. 创建盘点单，系统记录仓库和预期库存数量。
 2. 按电池编号逐个扫描。扫描结果包括 MATCHED、UNREGISTERED、WRONG_WAREHOUSE、NOT_COUNTABLE。
 3. 完成盘点后返回预期数量、匹配数量、缺失数量和异常扫描数量。
-4. 当前版本只生成盘点差异报告，不自动修改库存；差异调整需经过人工审核后由独立库存调整流程执行。
+4. 盘点完成只生成差异报告，不自动修改库存。当前支持对盘点确认缺失的 AVAILABLE 库存发起 MARK_LOST 调整申请；必须经审核通过后才会将库存改为 LOST 并生成 ADJUSTMENT 流水，驳回则不修改库存。
 
 ## 第一批业务验收场景
 
