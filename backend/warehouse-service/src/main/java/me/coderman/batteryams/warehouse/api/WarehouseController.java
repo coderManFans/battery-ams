@@ -160,6 +160,7 @@ public class WarehouseController {
         r.tenantId(),reservationNoToId(r.tenantId(),reservationNo),inventoryId,batteryId,code);
     }
     jdbc.update("UPDATE inventory_reservation SET status='ACTIVE' WHERE tenant_id=? AND reservation_no=?",r.tenantId(),reservationNo);
+    outbox.append(r.tenantId(),"INVENTORY_RESERVATION",reservationNo,"warehouse.inventory.reserved","battery-warehouse-events","INVENTORY_RESERVED",Map.of("warehouseId",r.warehouseId(),"batteryCodes",r.batteryCodes(),"ttlMinutes",ttl));
     return Map.of("data",Map.of("reservationNo",reservationNo,"status","ACTIVE","expiresInMinutes",ttl,"itemCount",r.batteryCodes().size()));
   }
 
@@ -177,6 +178,7 @@ public class WarehouseController {
     }
     jdbc.update("UPDATE inventory_reservation_item SET status='RELEASED' WHERE tenant_id=? AND reservation_id=? AND status='RESERVED'",r.tenantId(),reservation.get("id"));
     jdbc.update("UPDATE inventory_reservation SET status='RELEASED' WHERE tenant_id=? AND id=? AND status='ACTIVE'",r.tenantId(),reservation.get("id"));
+    outbox.append(r.tenantId(),"INVENTORY_RESERVATION",reservationNo,"warehouse.inventory.reservation.released","battery-warehouse-events","RESERVATION_RELEASED",Map.of("itemCount",items.size()));
     return Map.of("data",Map.of("reservationNo",reservationNo,"status","RELEASED","itemCount",items.size()));
   }
 
@@ -205,6 +207,7 @@ public class WarehouseController {
     jdbc.update("UPDATE inventory_reservation_item SET status='DISPATCHED' WHERE tenant_id=? AND reservation_id=? AND status='RESERVED'",r.tenantId(),reservation.get("id"));
     jdbc.update("UPDATE inventory_reservation SET status='DISPATCHED' WHERE tenant_id=? AND id=? AND status='ACTIVE'",r.tenantId(),reservation.get("id"));
     jdbc.update("UPDATE outbound_order SET status='COMPLETED' WHERE tenant_id=? AND order_no=?",r.tenantId(),orderNo);
+    outbox.append(r.tenantId(),"OUTBOUND_ORDER",orderNo,"warehouse.outbound.completed","battery-warehouse-events","OUTBOUND_COMPLETED",Map.of("warehouseId",warehouseId,"reservationNo",reservationNo,"batteryCodes",items.stream().map(x->x.get("battery_code")).toList()));
     return Map.of("data",Map.of("reservationNo",reservationNo,"orderNo",orderNo,"status","COMPLETED","itemCount",items.size()));
   }
 
