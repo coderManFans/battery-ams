@@ -181,8 +181,7 @@ public class WarehouseController {
     Map<String,Object> reservation=lockReservation(r.tenantId(),reservationNo);
     if(!"ACTIVE".equals(String.valueOf(reservation.get("status"))))
       throw new ResponseStatusException(HttpStatus.CONFLICT,"只有 ACTIVE 状态的预占可以出库");
-    Object expiresAt=reservation.get("expires_at");
-    if(expiresAt instanceof java.sql.Timestamp ts && ts.before(new java.util.Date()))
+    if(Boolean.TRUE.equals(reservation.get("expired")))
       throw new ResponseStatusException(HttpStatus.CONFLICT,"库存预占已过期，请重新预占");
     long warehouseId=((Number)reservation.get("warehouse_id")).longValue();
     String orderNo="OUT"+UUID.randomUUID().toString().replace("-","").substring(0,16).toUpperCase();
@@ -205,7 +204,7 @@ public class WarehouseController {
   }
 
   private Map<String,Object> lockReservation(long tenantId,String reservationNo) {
-    List<Map<String,Object>> rows=jdbc.queryForList("SELECT id,warehouse_id,status,expires_at FROM inventory_reservation WHERE tenant_id=? AND reservation_no=? FOR UPDATE",tenantId,reservationNo);
+    List<Map<String,Object>> rows=jdbc.queryForList("SELECT id,warehouse_id,status,expires_at,(expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP(3)) AS expired FROM inventory_reservation WHERE tenant_id=? AND reservation_no=? FOR UPDATE",tenantId,reservationNo);
     if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"预占单不存在");
     return rows.get(0);
   }
