@@ -1,0 +1,17 @@
+server:
+  port: 8082
+spring:
+  application:
+    name: warehouse-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/warehouse_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: battery_demo
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
