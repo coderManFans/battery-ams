@@ -17,6 +17,10 @@
 | POST | /api/v1/warehouses/reservations | 创建库存预占 |
 | POST | /api/v1/warehouses/reservations/{reservationNo}/release | 释放预占 |
 | POST | /api/v1/warehouses/reservations/{reservationNo}/dispatch | 按预占单出库 |
+| POST | /api/v1/stocktakes | 创建盘点单 |
+| POST | /api/v1/stocktakes/{stocktakeNo}/scans | 扫描电池 |
+| POST | /api/v1/stocktakes/{stocktakeNo}/complete | 完成盘点 |
+| GET | /api/v1/stocktakes/{stocktakeNo} | 盘点详情 |
 
 ## 入库请求示例
 
@@ -75,6 +79,13 @@
 ```
 
 预占成功后库存状态变为 RESERVED。释放预占会恢复 AVAILABLE；按预占单出库会将库存改为 DISPATCHED，并生成正式出库单和 OUTBOUND 流水。预占默认 30 分钟，允许 1 至 1440 分钟。过期预占不可出库，需先释放或由后续过期清理任务释放。
+
+## 盘点流程
+
+1. 创建盘点单，系统记录仓库和预期库存数量。
+2. 按电池编号逐个扫描。扫描结果包括 MATCHED、UNREGISTERED、WRONG_WAREHOUSE、NOT_COUNTABLE。
+3. 完成盘点后返回预期数量、匹配数量、缺失数量和异常扫描数量。
+4. 当前版本只生成盘点差异报告，不自动修改库存；差异调整需经过人工审核后由独立库存调整流程执行。
 
 ## 第一批业务验收场景
 
