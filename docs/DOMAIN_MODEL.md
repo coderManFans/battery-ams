@@ -11,7 +11,7 @@
 ## Workorder Context
 聚合根 WorkOrder；任务、分配、审批、操作日志为内部实体。类型 REPAIR、INSPECTION、MAINTENANCE、EXCEPTION。
 
-## Preservation Context
+## Workorder Service API（第一版）\n- `GET /api/v1/work-orders`：分页查询，支持状态和类型过滤。\n- `GET /api/v1/work-orders/{id}`：工单详情及流转日志。\n- `POST /api/v1/work-orders`：创建维修、检测、巡检、异常工单。\n- `POST /api/v1/work-orders/{id}/assign`：分派处理人。\n- `POST /api/v1/work-orders/{id}/transitions`：按状态机推进工单。\n\n状态：PENDING → ASSIGNED → ACCEPTED → IN_PROGRESS → WAITING_REVIEW → COMPLETED；允许按规则取消，审核退回可从 WAITING_REVIEW 回到 IN_PROGRESS。\n\n## Preservation Context
 RiskEvent、AssetFreeze、InspectionRecord，负责风险识别、冻结请求和处置，不直接修改资产库。
 
 ## Telemetry Context
