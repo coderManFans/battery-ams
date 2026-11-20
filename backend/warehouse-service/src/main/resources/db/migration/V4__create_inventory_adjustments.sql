@@ -1,0 +1,20 @@
+CREATE TABLE inventory_adjustment (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ tenant_id BIGINT NOT NULL,
+ adjustment_no VARCHAR(32) NOT NULL,
+ stocktake_id BIGINT NOT NULL,
+ inventory_item_id BIGINT NOT NULL,
+ battery_id BIGINT NOT NULL,
+ battery_code VARCHAR(64) NOT NULL,
+ warehouse_id BIGINT NOT NULL,
+ adjustment_type VARCHAR(32) NOT NULL,
+ reason VARCHAR(500) NOT NULL,
+ status VARCHAR(24) NOT NULL DEFAULT 'PENDING',
+ requested_by BIGINT NOT NULL,
+ reviewed_by BIGINT,
+ reviewed_at DATETIME(3),
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ UNIQUE KEY uk_adjustment_no(tenant_id,adjustment_no),
+ KEY idx_adjustment_review(tenant_id,status,created_at),
+ KEY idx_adjustment_stocktake(tenant_id,stocktake_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
