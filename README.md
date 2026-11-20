@@ -11,7 +11,7 @@
 - 前端：Vue 3 + TypeScript + Vite + Element Plus
 - 后端：Java 21 + Spring Boot 3.5 + Maven
 - 数据：MySQL 8，按微服务边界隔离
-- 中间件：Redis、RabbitMQ
+- 中间件：Redis、Apache RocketMQ
 - 本地部署：Docker Compose
 
 ## 微服务边界（规划）
