@@ -112,8 +112,6 @@ public class WarehouseController {
   @PostMapping("/transfer")
   @Transactional
   public Map<String,Object> transfer(@Valid @RequestBody TransferRequest r) {
-    if(r.fromWarehouseId().equals(r.toWarehouseId()) && r.fromLocationId().equals(r.toLocationId()))
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"调出库位和调入库位不能相同");
     requireWarehouse(r.tenantId(),r.fromWarehouseId());
     requireWarehouse(r.tenantId(),r.toWarehouseId());
     if(jdbc.queryForObject("SELECT COUNT(*) FROM warehouse_location WHERE id=? AND warehouse_id=? AND tenant_id=? AND status='ACTIVE'",Integer.class,r.toLocationId(),r.toWarehouseId(),r.tenantId())==0)
