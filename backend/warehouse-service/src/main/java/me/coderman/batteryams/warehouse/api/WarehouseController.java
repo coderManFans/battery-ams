@@ -241,5 +241,7 @@ public class WarehouseController {
   public record BatteryLine(@NotNull Long batteryId,@NotBlank String batteryCode,@NotBlank String modelCode) {}
   public record InboundRequest(@NotNull Long tenantId,@NotNull Long warehouseId,@NotNull Long locationId,@NotNull Long operatorId,@NotEmpty List<@Valid BatteryLine> items) {}
   public record OutboundRequest(@NotNull Long tenantId,@NotNull Long warehouseId,@NotNull Long operatorId,@NotEmpty List<@NotBlank String> batteryCodes) {}
-  public record TransferRequest(@NotNull Long tenantId,@NotNull Long fromWarehouseId,@NotNull Long toWarehouseId,@NotNull Long toLocationId,@NotNull Long operatorId,@NotEmpty List<@NotBlank String> batteryCodes) {}\n  public record ReserveRequest(@NotNull Long tenantId,@NotNull Long warehouseId,@NotNull Long operatorId,@NotEmpty List<@NotBlank String> batteryCodes,Integer ttlMinutes) {}\n  public record ReservationActionRequest(@NotNull Long tenantId,@NotNull Long operatorId) {}
+  public record TransferRequest(@NotNull Long tenantId,@NotNull Long fromWarehouseId,@NotNull Long toWarehouseId,@NotNull Long toLocationId,@NotNull Long operatorId,@NotEmpty List<@NotBlank String> batteryCodes) {}
+  public record ReserveRequest(@NotNull Long tenantId,@NotNull Long warehouseId,@NotNull Long operatorId,@NotEmpty List<@NotBlank String> batteryCodes,Integer ttlMinutes) {}
+  public record ReservationActionRequest(@NotNull Long tenantId,@NotNull Long operatorId) {}
 }
