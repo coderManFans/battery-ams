@@ -11,4 +11,4 @@
 | telemetry-service | BMS 适配、遥测、告警 | telemetry_db |
 | analytics-service | 指标聚合、报表、读模型 | analytics_db |
 
-同步 REST 用于即时查询和命令；RabbitMQ 领域事件用于异步协作。事件至少一次投递，消费者必须幂等。生产采用 Outbox + Relay；跨服务流程使用 Saga/补偿。每服务独立拥有数据库和凭据，禁止跨服务 SQL JOIN。开发可用一个 MySQL 容器承载多个 schema，生产按服务隔离实例/集群。先交付真实业务垂直切片，不制造空壳服务。
+同步 REST 用于即时查询和命令；Apache RocketMQ 领域事件用于异步协作。事件至少一次投递，消费者必须幂等。生产采用 Outbox + Relay；跨服务流程使用 Saga/补偿。每服务独立拥有数据库和凭据，禁止跨服务 SQL JOIN。开发可用一个 MySQL 容器承载多个 schema，生产按服务隔离实例/集群。先交付真实业务垂直切片，不制造空壳服务。
