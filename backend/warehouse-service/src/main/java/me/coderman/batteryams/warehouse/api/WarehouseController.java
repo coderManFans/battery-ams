@@ -3,6 +3,7 @@ package me.coderman.batteryams.warehouse.api;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotEmpty;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,6 +69,7 @@ public class WarehouseController {
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
   public Map<String,Object> inbound(@Valid @RequestBody InboundRequest r) {
+    validateInboundItems(r.items());
     requireWarehouse(r.tenantId(),r.warehouseId());
     if(jdbc.queryForObject("SELECT COUNT(*) FROM warehouse_location WHERE id=? AND warehouse_id=? AND tenant_id=? AND status='ACTIVE'",Integer.class,r.locationId(),r.warehouseId(),r.tenantId())==0)
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"库位不存在或不可用");
@@ -89,6 +91,8 @@ public class WarehouseController {
   @PostMapping("/outbound")
   @Transactional
   public Map<String,Object> outbound(@Valid @RequestBody OutboundRequest r) {
+    requireWarehouse(r.tenantId(),r.warehouseId());
+    validateBatteryCodes(r.batteryCodes());
     String orderNo="OUT"+UUID.randomUUID().toString().replace("-","").substring(0,16).toUpperCase();
     jdbc.update("INSERT INTO outbound_order(tenant_id,order_no,warehouse_id,status,operator_id) VALUES(?,?,?,'PROCESSING',?)",r.tenantId(),orderNo,r.warehouseId(),r.operatorId());
     for(String batteryCode:r.batteryCodes()) {
@@ -104,6 +108,49 @@ public class WarehouseController {
     return Map.of("data",Map.of("orderNo",orderNo,"status","COMPLETED","itemCount",r.batteryCodes().size()));
   }
 
+
+  @PostMapping("/transfer")
+  @Transactional
+  public Map<String,Object> transfer(@Valid @RequestBody TransferRequest r) {
+    if(r.fromWarehouseId().equals(r.toWarehouseId()) && r.fromLocationId().equals(r.toLocationId()))
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"调出库位和调入库位不能相同");
+    requireWarehouse(r.tenantId(),r.fromWarehouseId());
+    requireWarehouse(r.tenantId(),r.toWarehouseId());
+    if(jdbc.queryForObject("SELECT COUNT(*) FROM warehouse_location WHERE id=? AND warehouse_id=? AND tenant_id=? AND status='ACTIVE'",Integer.class,r.toLocationId(),r.toWarehouseId(),r.tenantId())==0)
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"调入库位不存在或不可用");
+    validateBatteryCodes(r.batteryCodes());
+    String orderNo="TR"+UUID.randomUUID().toString().replace("-","").substring(0,16).toUpperCase();
+    for(String batteryCode:r.batteryCodes()) {
+      List<Map<String,Object>> rows=jdbc.queryForList("SELECT id,battery_id,location_id FROM inventory_item WHERE tenant_id=? AND warehouse_id=? AND battery_code=? AND status='AVAILABLE' FOR UPDATE",r.tenantId(),r.fromWarehouseId(),batteryCode);
+      if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.CONFLICT,"电池不在调出仓库的可用库存中: "+batteryCode);
+      long itemId=((Number)rows.get(0).get("id")).longValue();
+      long batteryId=((Number)rows.get(0).get("battery_id")).longValue();
+      long fromLocationId=((Number)rows.get(0).get("location_id")).longValue();
+      jdbc.update("UPDATE inventory_item SET warehouse_id=?,location_id=?,updated_at=CURRENT_TIMESTAMP(3) WHERE id=? AND status='AVAILABLE'",r.toWarehouseId(),r.toLocationId(),itemId);
+      jdbc.update("INSERT INTO inventory_transaction(tenant_id,transaction_no,transaction_type,battery_id,battery_code,warehouse_id,from_location_id,to_location_id,order_no,operator_id) VALUES(?,?,'TRANSFER',?,?,?,?,?,?,?)",
+        r.tenantId(),orderNo+"-"+batteryCode,batteryId,batteryCode,r.fromWarehouseId(),fromLocationId,r.toLocationId(),orderNo,r.operatorId());
+    }
+    return Map.of("data",Map.of("orderNo",orderNo,"status","COMPLETED","itemCount",r.batteryCodes().size(),"fromWarehouseId",r.fromWarehouseId(),"toWarehouseId",r.toWarehouseId()));
+  }
+
+  private void validateInboundItems(List<BatteryLine> items) {
+    if(items==null||items.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"入库明细不能为空");
+    if(items.size()>200) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"单次入库最多 200 块电池");
+    java.util.HashSet<Long> ids=new java.util.HashSet<>();
+    java.util.HashSet<String> codes=new java.util.HashSet<>();
+    for(BatteryLine item:items) {
+      if(!ids.add(item.batteryId())||!codes.add(item.batteryCode()))
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"同一入库单不能包含重复电池");
+    }
+  }
+
+  private void validateBatteryCodes(List<String> codes) {
+    if(codes==null||codes.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"电池编号不能为空");
+    if(codes.size()>200) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"单次操作最多 200 块电池");
+    if(new java.util.HashSet<>(codes).size()!=codes.size())
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"电池编号不能重复");
+  }
+
   private void requireWarehouse(long tenantId,long warehouseId) {
     if(jdbc.queryForObject("SELECT COUNT(*) FROM warehouse WHERE id=? AND tenant_id=? AND status='ACTIVE'",Integer.class,warehouseId,tenantId)==0)
       throw new ResponseStatusException(HttpStatus.NOT_FOUND,"仓库不存在或已停用");
@@ -112,6 +159,7 @@ public class WarehouseController {
   public record CreateWarehouseRequest(@NotNull Long tenantId,@NotBlank String warehouseCode,@NotBlank String name,String address) {}
   public record CreateLocationRequest(@NotNull Long tenantId,@NotBlank String locationCode,@NotBlank String name) {}
   public record BatteryLine(@NotNull Long batteryId,@NotBlank String batteryCode,@NotBlank String modelCode) {}
-  public record InboundRequest(@NotNull Long tenantId,@NotNull Long warehouseId,@NotNull Long locationId,@NotNull Long operatorId,@NotNull List<@Valid BatteryLine> items) {}
-  public record OutboundRequest(@NotNull Long tenantId,@NotNull Long warehouseId,@NotNull Long operatorId,@NotNull List<@NotBlank String> batteryCodes) {}
+  public record InboundRequest(@NotNull Long tenantId,@NotNull Long warehouseId,@NotNull Long locationId,@NotNull Long operatorId,@NotEmpty List<@Valid BatteryLine> items) {}
+  public record OutboundRequest(@NotNull Long tenantId,@NotNull Long warehouseId,@NotNull Long operatorId,@NotEmpty List<@NotBlank String> batteryCodes) {}
+  public record TransferRequest(@NotNull Long tenantId,@NotNull Long fromWarehouseId,@NotNull Long toWarehouseId,@NotNull Long toLocationId,@NotNull Long operatorId,@NotEmpty List<@NotBlank String> batteryCodes) {}
 }
