@@ -79,7 +79,7 @@ public class StocktakeController {
   }
 
   private Map<String,Object> lockSession(long tenantId,String no) {
-    List<Map<String,Object>> rows=jdbc.queryForList("SELECT id,warehouse_id,status,started_at,completed_at FROM stocktake_session WHERE tenant_id=? AND stocktake_no=?",
+    List<Map<String,Object>> rows=jdbc.queryForList("SELECT id,warehouse_id,status,started_at,completed_at FROM stocktake_session WHERE tenant_id=? AND stocktake_no=? FOR UPDATE",
       tenantId,no);
     if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"盘点单不存在");
     return rows.get(0);
