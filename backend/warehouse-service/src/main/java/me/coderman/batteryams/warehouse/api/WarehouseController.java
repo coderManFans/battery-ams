@@ -12,12 +12,14 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import me.coderman.batteryams.warehouse.messaging.OutboxService;
 
 @RestController
 @RequestMapping("/api/v1/warehouses")
 public class WarehouseController {
   private final JdbcTemplate jdbc;
-  public WarehouseController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+  private final OutboxService outbox;
+  public WarehouseController(JdbcTemplate jdbc,OutboxService outbox) { this.jdbc = jdbc; this.outbox=outbox; }
 
   @GetMapping
   public Map<String,Object> warehouses(@RequestParam(defaultValue="1") long tenantId) {
@@ -85,6 +87,7 @@ public class WarehouseController {
       jdbc.update("INSERT INTO inventory_transaction(tenant_id,transaction_no,transaction_type,battery_id,battery_code,warehouse_id,to_location_id,order_no,operator_id) VALUES(?,?,'INBOUND',?,?,?,?,?,?)",
         r.tenantId(),orderNo+"-"+line.batteryCode(),line.batteryId(),line.batteryCode(),r.warehouseId(),r.locationId(),orderNo,r.operatorId());
     }
+    outbox.append(r.tenantId(),"INBOUND_ORDER",orderNo,"warehouse.inbound.completed","battery-warehouse-events","INBOUND_COMPLETED",Map.of("warehouseId",r.warehouseId(),"itemCount",r.items().size()));
     return Map.of("data",Map.of("orderNo",orderNo,"status","COMPLETED","itemCount",r.items().size()));
   }
 
@@ -105,6 +108,7 @@ public class WarehouseController {
         r.tenantId(),orderNo+"-"+batteryCode,batteryId,batteryCode,r.warehouseId(),orderNo,r.operatorId());
     }
     jdbc.update("UPDATE outbound_order SET status='COMPLETED' WHERE tenant_id=? AND order_no=?",r.tenantId(),orderNo);
+    outbox.append(r.tenantId(),"OUTBOUND_ORDER",orderNo,"warehouse.outbound.completed","battery-warehouse-events","OUTBOUND_COMPLETED",Map.of("warehouseId",r.warehouseId(),"batteryCodes",r.batteryCodes()));
     return Map.of("data",Map.of("orderNo",orderNo,"status","COMPLETED","itemCount",r.batteryCodes().size()));
   }
 
@@ -128,6 +132,7 @@ public class WarehouseController {
       jdbc.update("INSERT INTO inventory_transaction(tenant_id,transaction_no,transaction_type,battery_id,battery_code,warehouse_id,from_location_id,to_location_id,order_no,operator_id) VALUES(?,?,'TRANSFER',?,?,?,?,?,?,?)",
         r.tenantId(),orderNo+"-"+batteryCode,batteryId,batteryCode,r.fromWarehouseId(),fromLocationId,r.toLocationId(),orderNo,r.operatorId());
     }
+    outbox.append(r.tenantId(),"TRANSFER_ORDER",orderNo,"warehouse.transfer.completed","battery-warehouse-events","TRANSFER_COMPLETED",Map.of("fromWarehouseId",r.fromWarehouseId(),"toWarehouseId",r.toWarehouseId(),"batteryCodes",r.batteryCodes()));
     return Map.of("data",Map.of("orderNo",orderNo,"status","COMPLETED","itemCount",r.batteryCodes().size(),"fromWarehouseId",r.fromWarehouseId(),"toWarehouseId",r.toWarehouseId()));
   }
 
