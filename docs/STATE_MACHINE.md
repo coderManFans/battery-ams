@@ -1,0 +1,9 @@
+# 状态机
+
+电池生命周期主路径：REGISTERED → AVAILABLE → RESERVED → IN_TRANSIT → AVAILABLE → IN_SERVICE。
+
+风险路径：AVAILABLE/IN_SERVICE → FROZEN → UNDER_REPAIR → AVAILABLE 或 RETIRED。
+
+必须分别建模生命周期、库存、健康状态，不能把所有状态组合塞入单一枚举。
+
+工单：DRAFT → PENDING → ASSIGNED → ACCEPTED → IN_PROGRESS → WAITING_REVIEW → COMPLETED；异常可按权限转 CANCELLED。每次迁移记录原状态、新状态、命令、原因、操作者、时间和 traceId。
