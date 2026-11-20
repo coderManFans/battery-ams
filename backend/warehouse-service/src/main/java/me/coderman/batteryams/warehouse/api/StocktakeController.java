@@ -11,12 +11,14 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import me.coderman.batteryams.warehouse.messaging.OutboxService;
 
 @RestController
 @RequestMapping("/api/v1/stocktakes")
 public class StocktakeController {
   private final JdbcTemplate jdbc;
-  public StocktakeController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+  private final OutboxService outbox;
+  public StocktakeController(JdbcTemplate jdbc,OutboxService outbox) { this.jdbc = jdbc; this.outbox=outbox; }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
@@ -118,6 +120,7 @@ public class StocktakeController {
       r.tenantId(),transactionNo,adjustment.get("battery_id"),adjustment.get("battery_code"),adjustment.get("warehouse_id"),adjustmentNo,r.operatorId());
     jdbc.update("UPDATE inventory_adjustment SET status='APPROVED',reviewed_by=?,reviewed_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=? AND id=? AND status='PENDING'",
       r.operatorId(),r.tenantId(),adjustment.get("id"));
+    outbox.append(r.tenantId(),"INVENTORY_ADJUSTMENT",adjustmentNo,"warehouse.inventory.adjusted","battery-warehouse-events","INVENTORY_ADJUSTED",Map.of("batteryId",adjustment.get("battery_id"),"batteryCode",adjustment.get("battery_code"),"adjustmentType","MARK_LOST","warehouseId",adjustment.get("warehouse_id")));
     return Map.of("data",Map.of("adjustmentNo",adjustmentNo,"status","APPROVED","batteryCode",adjustment.get("battery_code")));
   }
 
