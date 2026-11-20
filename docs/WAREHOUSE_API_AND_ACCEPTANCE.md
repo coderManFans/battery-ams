@@ -14,6 +14,9 @@
 | POST | /api/v1/warehouses/inbound | 电池入库 |
 | POST | /api/v1/warehouses/outbound | 电池出库 |
 | POST | /api/v1/warehouses/transfer | 仓库间调拨 |
+| POST | /api/v1/warehouses/reservations | 创建库存预占 |
+| POST | /api/v1/warehouses/reservations/{reservationNo}/release | 释放预占 |
+| POST | /api/v1/warehouses/reservations/{reservationNo}/dispatch | 按预占单出库 |
 
 ## 入库请求示例
 
@@ -59,6 +62,20 @@
 
 调拨会锁定调出仓库中的可用库存行，在同一事务中更新仓库/库位归属并记录 TRANSFER 流水；任意一块电池不可调拨时整单回滚。调入库位必须属于目标仓库且处于 ACTIVE 状态。
 
+## 库存预占示例
+
+```json
+{
+  "tenantId": 1,
+  "warehouseId": 1,
+  "operatorId": 1001,
+  "batteryCodes": ["BAT-20001"],
+  "ttlMinutes": 30
+}
+```
+
+预占成功后库存状态变为 RESERVED。释放预占会恢复 AVAILABLE；按预占单出库会将库存改为 DISPATCHED，并生成正式出库单和 OUTBOUND 流水。预占默认 30 分钟，允许 1 至 1440 分钟。过期预占不可出库，需先释放或由后续过期清理任务释放。
+
 ## 第一批业务验收场景
 
 1. 创建仓库和库位，列表能够查询到。
@@ -72,4 +89,4 @@
 
 ## 当前边界与下一步
 
-目前入库 API 接收资产服务传入的 batteryId、batteryCode、modelCode，但尚未通过服务间 API 验证电池是否真实存在、是否允许入库；待统一认证和服务间调用配置完成后补齐。当前 tenantId/operatorId 是演示参数，不是可信身份凭据。后续补充盘点、预占、释放、幂等键、库存事件 Outbox 和端到端测试。
+目前入库 API 接收资产服务传入的 batteryId、batteryCode、modelCode，但尚未通过服务间 API 验证电池是否真实存在、是否允许入库；待统一认证和服务间调用配置完成后补齐。当前 tenantId/operatorId 是演示参数，不是可信身份凭据。后续补充盘点、预占过期自动清理、幂等键、库存事件 Outbox 和端到端测试。
