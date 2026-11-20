@@ -19,3 +19,14 @@ management:
 warehouse:
   reservation-expiry:
     delay-ms: 30000
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: battery-warehouse-producer
+    send-message-timeout: 5000
+    retry-times-when-send-failed: 2
+
+warehouse:
+  outbox-relay:
+    delay-ms: 2000
