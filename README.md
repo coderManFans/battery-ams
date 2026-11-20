@@ -21,7 +21,7 @@
 | gateway-service | 统一入口、路由和认证接入 |
 | system-service | 租户、组织、用户、角色、权限 |
 | asset-service | 电池档案、型号、生命周期和状态历史 |
-| warehouse-service | 仓库、库位、库存、出入库、调拨和盘点 |\n| workorder-service | 维修、检测、巡检工单及任务流转 |\n| preservation-service | 风险事件、资产冻结、巡检记录与风险处置 |
+| warehouse-service | 仓库、库位、库存、出入库、调拨和盘点 |\n| workorder-service | 维修、检测、巡检工单及任务流转 |\n| preservation-service | 风险事件、资产冻结、巡检记录与风险处置 |\n| telemetry-service | BMS 遥测数据、SOC/SOH、电压温度及告警管理 |
 | workorder-service | 维修、检测、巡检工单及任务流转 |
 | preservation-service | 风险事件、冻结、巡检和资产轨迹 |
 | telemetry-service | BMS 遥测接入、数据记录和告警 |
