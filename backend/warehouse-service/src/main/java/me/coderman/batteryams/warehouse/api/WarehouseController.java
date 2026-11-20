@@ -87,7 +87,7 @@ public class WarehouseController {
       jdbc.update("INSERT INTO inventory_transaction(tenant_id,transaction_no,transaction_type,battery_id,battery_code,warehouse_id,to_location_id,order_no,operator_id) VALUES(?,?,'INBOUND',?,?,?,?,?,?)",
         r.tenantId(),orderNo+"-"+line.batteryCode(),line.batteryId(),line.batteryCode(),r.warehouseId(),r.locationId(),orderNo,r.operatorId());
     }
-    outbox.append(r.tenantId(),"INBOUND_ORDER",orderNo,"warehouse.inbound.completed","battery-warehouse-events","INBOUND_COMPLETED",Map.of("warehouseId",r.warehouseId(),"itemCount",r.items().size()));
+    outbox.append(r.tenantId(),"INBOUND_ORDER",orderNo,"warehouse.inbound.completed","battery-warehouse-events","INBOUND_COMPLETED",Map.of("warehouseId",r.warehouseId(),"batteryCodes",r.items().stream().map(BatteryLine::batteryCode).toList(),"itemCount",r.items().size()));
     return Map.of("data",Map.of("orderNo",orderNo,"status","COMPLETED","itemCount",r.items().size()));
   }
 
