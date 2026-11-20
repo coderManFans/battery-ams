@@ -140,5 +140,7 @@ public class StocktakeController {
 
   public record CreateStocktakeRequest(@NotNull Long tenantId,@NotNull Long warehouseId,@NotNull Long operatorId) {}
   public record ScanRequest(@NotNull Long tenantId,@NotBlank String batteryCode,@NotNull Long operatorId) {}
-  public record CompleteRequest(@NotNull Long tenantId,@NotNull Long operatorId) {}\n  public record AdjustmentRequest(@NotNull Long tenantId,@NotNull Long inventoryItemId,@NotBlank String adjustmentType,@NotBlank String reason,@NotNull Long operatorId) {}\n  public record ReviewRequest(@NotNull Long tenantId,@NotNull Long operatorId) {}
+  public record CompleteRequest(@NotNull Long tenantId,@NotNull Long operatorId) {}
+  public record AdjustmentRequest(@NotNull Long tenantId,@NotNull Long inventoryItemId,@NotBlank String adjustmentType,@NotBlank String reason,@NotNull Long operatorId) {}
+  public record ReviewRequest(@NotNull Long tenantId,@NotNull Long operatorId) {}
 }
