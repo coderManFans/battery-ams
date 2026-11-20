@@ -17,6 +17,7 @@ class ConsumedEventServiceTest {
   void setUp() {
     jdbc = mock(JdbcTemplate.class);
     mapper = new ObjectMapper();
+    when(jdbc.update(anyString(), any(Object[].class))).thenReturn(1);
     service = new ConsumedEventService(jdbc);
   }
 
