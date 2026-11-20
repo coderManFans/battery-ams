@@ -6,21 +6,94 @@ import jakarta.validation.constraints.NotNull;
 import me.coderman.batteryams.asset.domain.BatteryStatus;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 
-@RestController @RequestMapping("/api/v1/assets")
+@RestController
+@RequestMapping("/api/v1/assets")
 public class AssetController {
   private final JdbcTemplate jdbc;
-  public AssetController(JdbcTemplate jdbc){this.jdbc=jdbc;}
-  @GetMapping public Map<String,Object> list(){return Map.of("data",jdbc.queryForList("SELECT id,tenant_id AS tenantId,battery_code AS batteryCode,model_code AS modelCode,lifecycle_status AS status,health_status AS healthStatus,current_location_type AS locationType,current_location_id AS locationId,soc,soh,version,created_at AS createdAt FROM battery_asset ORDER BY id DESC LIMIT 200"));}
-  @PostMapping @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> create(@Valid @RequestBody CreateAssetRequest r){try{if(r.soc()<0||r.soc()>100||r.soh()<0||r.soh()>100)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"SOC/SOH 必须在 0 到 100 之间");jdbc.update("INSERT INTO battery_asset(tenant_id,battery_code,serial_no,model_code,owner_org_id,lifecycle_status,health_status,soc,soh,version) VALUES(?,?,?,?,?,'REGISTERED','NORMAL',?,?,0)",r.tenantId(),r.batteryCode(),r.serialNo(),r.modelCode(),r.ownerOrgId(),r.soc(),r.soh());}catch(org.springframework.dao.DuplicateKeyException e){throw new ResponseStatusException(HttpStatus.CONFLICT,"电池编码或序列号已存在");}return Map.of("data",jdbc.queryForMap("SELECT id,battery_code AS batteryCode,lifecycle_status AS status FROM battery_asset WHERE tenant_id=? AND battery_code=?",r.tenantId(),r.batteryCode()));}
+  public AssetController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+
+  @GetMapping
+  public Map<String,Object> list(@RequestParam(defaultValue="1") long tenantId,
+      @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="20") int size,
+      @RequestParam(required=false) String status, @RequestParam(required=false) String keyword) {
+    if (page < 1 || size < 1 || size > 200) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"分页参数无效");
+    StringBuilder where = new StringBuilder(" WHERE tenant_id=?");
+    java.util.ArrayList<Object> args = new java.util.ArrayList<>();
+    args.add(tenantId);
+    if (status != null && !status.isBlank()) { where.append(" AND lifecycle_status=?"); args.add(status); }
+    if (keyword != null && !keyword.isBlank()) { where.append(" AND (battery_code LIKE ? OR serial_no LIKE ?)"); args.add("%"+keyword+"%"); args.add("%"+keyword+"%"); }
+    Long total = jdbc.queryForObject("SELECT COUNT(*) FROM battery_asset"+where,args.toArray(),Long.class);
+    args.add(size); args.add((page-1)*size);
+    List<Map<String,Object>> rows = jdbc.queryForList("SELECT id,tenant_id AS tenantId,battery_code AS batteryCode,serial_no AS serialNo,model_code AS modelCode,lifecycle_status AS status,health_status AS healthStatus,current_location_type AS locationType,current_location_id AS locationId,soc,soh,version,created_at AS createdAt,updated_at AS updatedAt FROM battery_asset"+where+" ORDER BY id DESC LIMIT ? OFFSET ?",args.toArray());
+    return Map.of("data",rows,"page",page,"size",size,"total",total == null ? 0 : total);
+  }
+
+  @GetMapping("/{id}")
+  public Map<String,Object> detail(@PathVariable long id,@RequestParam(defaultValue="1") long tenantId) {
+    List<Map<String,Object>> rows=jdbc.queryForList("SELECT id,tenant_id AS tenantId,battery_code AS batteryCode,serial_no AS serialNo,model_code AS modelCode,owner_org_id AS ownerOrgId,lifecycle_status AS status,health_status AS healthStatus,current_location_type AS locationType,current_location_id AS locationId,soc,soh,version,created_at AS createdAt,updated_at AS updatedAt FROM battery_asset WHERE id=? AND tenant_id=?",id,tenantId);
+    if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"电池资产不存在");
+    return Map.of("data",rows.get(0));
+  }
+
+  @GetMapping("/{id}/history")
+  public Map<String,Object> history(@PathVariable long id,@RequestParam(defaultValue="1") long tenantId) {
+    if(jdbc.queryForObject("SELECT COUNT(*) FROM battery_asset WHERE id=? AND tenant_id=?",Integer.class,id,tenantId)==0)
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND,"电池资产不存在");
+    return Map.of("data",jdbc.queryForList("SELECT h.id,h.from_status AS fromStatus,h.to_status AS toStatus,h.reason,h.operator_id AS operatorId,h.occurred_at AS occurredAt FROM battery_status_history h WHERE h.battery_id=? ORDER BY h.id DESC",id));
+  }
+
+  @PostMapping
+  @ResponseStatus(HttpStatus.CREATED)
+  public Map<String,Object> create(@Valid @RequestBody CreateAssetRequest r) {
+    if(r.soc()<0||r.soc()>100||r.soh()<0||r.soh()>100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"SOC/SOH 必须在 0 到 100 之间");
+    try {
+      jdbc.update("INSERT INTO battery_asset(tenant_id,battery_code,serial_no,model_code,owner_org_id,lifecycle_status,health_status,soc,soh,version) VALUES(?,?,?,?,?,'REGISTERED','NORMAL',?,?,0)",
+        r.tenantId(),r.batteryCode(),r.serialNo(),r.modelCode(),r.ownerOrgId(),r.soc(),r.soh());
+    } catch(org.springframework.dao.DuplicateKeyException e) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT,"电池编码或序列号已存在");
+    }
+    return Map.of("data",jdbc.queryForMap("SELECT id,tenant_id AS tenantId,battery_code AS batteryCode,lifecycle_status AS status FROM battery_asset WHERE tenant_id=? AND battery_code=?",r.tenantId(),r.batteryCode()));
+  }
+
   @Transactional
-  @PostMapping("/{id}/transitions") public Map<String,Object> transition(@PathVariable long id,@Valid @RequestBody TransitionRequest r){return jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<Map<String,Object>>) c->{try(var ps=c.prepareStatement("SELECT tenant_id,lifecycle_status,version FROM battery_asset WHERE id=? FOR UPDATE")){ps.setLong(1,id);try(var rs=ps.executeQuery()){if(!rs.next())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"电池资产不存在");String from=rs.getString("lifecycle_status");long version=rs.getLong("version");if(!allowed(from,r.toStatus().name()))throw new ResponseStatusException(HttpStatus.CONFLICT,"非法状态流转: "+from+" -> "+r.toStatus());try(var up=c.prepareStatement("UPDATE battery_asset SET lifecycle_status=?,version=version+1 WHERE id=? AND version=?")){up.setString(1,r.toStatus().name());up.setLong(2,id);up.setLong(3,version);up.executeUpdate();}try(var h=c.prepareStatement("INSERT INTO battery_status_history(battery_id,from_status,to_status,reason,operator_id) VALUES(?,?,?,?,?)")){h.setLong(1,id);h.setString(2,from);h.setString(3,r.toStatus().name());h.setString(4,r.reason());h.setLong(5,r.operatorId());h.executeUpdate();}return Map.of("data",Map.of("id",id,"fromStatus",from,"toStatus",r.toStatus().name()));}}}});}
-  private boolean allowed(String f,String t){return switch(f){case "REGISTERED"->t.equals("AVAILABLE");case "AVAILABLE"->List.of("IN_SERVICE","FROZEN","UNDER_REPAIR","RETIRED").contains(t);case "IN_SERVICE"->List.of("FROZEN","UNDER_REPAIR").contains(t);case "FROZEN"->List.of("AVAILABLE","UNDER_REPAIR","RETIRED").contains(t);case "UNDER_REPAIR"->List.of("AVAILABLE","RETIRED").contains(t);default->false;};}
-  public record CreateAssetRequest(@NotNull Long tenantId,@NotBlank String batteryCode,@NotBlank String serialNo,@NotBlank String modelCode,@NotNull Long ownerOrgId,@NotNull Integer soc,@NotNull Double soh){}
-  public record TransitionRequest(@NotNull BatteryStatus toStatus,@NotBlank String reason,@NotNull Long operatorId){}
+  @PostMapping("/{id}/transitions")
+  public Map<String,Object> transition(@PathVariable long id,@Valid @RequestBody TransitionRequest r) {
+    return jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<Map<String,Object>>) c -> {
+      try(var ps=c.prepareStatement("SELECT tenant_id,lifecycle_status,version FROM battery_asset WHERE id=? AND tenant_id=? FOR UPDATE")) {
+        ps.setLong(1,id); ps.setLong(2,r.tenantId());
+        try(var rs=ps.executeQuery()) {
+          if(!rs.next()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"电池资产不存在");
+          String from=rs.getString("lifecycle_status"); long version=rs.getLong("version");
+          if(!allowed(from,r.toStatus().name())) throw new ResponseStatusException(HttpStatus.CONFLICT,"非法状态流转: "+from+" -> "+r.toStatus());
+          try(var up=c.prepareStatement("UPDATE battery_asset SET lifecycle_status=?,version=version+1,updated_at=CURRENT_TIMESTAMP(3) WHERE id=? AND version=?")) {
+            up.setString(1,r.toStatus().name()); up.setLong(2,id); up.setLong(3,version);
+            if(up.executeUpdate()!=1) throw new ResponseStatusException(HttpStatus.CONFLICT,"资产版本冲突");
+          }
+          try(var h=c.prepareStatement("INSERT INTO battery_status_history(battery_id,from_status,to_status,reason,operator_id) VALUES(?,?,?,?,?)")) {
+            h.setLong(1,id);h.setString(2,from);h.setString(3,r.toStatus().name());h.setString(4,r.reason());h.setLong(5,r.operatorId());h.executeUpdate();
+          }
+          return Map.of("data",Map.of("id",id,"fromStatus",from,"toStatus",r.toStatus().name()));
+        }
+      }
+    });
+  }
+
+  private boolean allowed(String from,String to) {
+    return switch(from) {
+      case "REGISTERED" -> to.equals("AVAILABLE");
+      case "AVAILABLE" -> List.of("IN_SERVICE","FROZEN","UNDER_REPAIR","RETIRED").contains(to);
+      case "IN_SERVICE" -> List.of("FROZEN","UNDER_REPAIR").contains(to);
+      case "FROZEN" -> List.of("AVAILABLE","UNDER_REPAIR","RETIRED").contains(to);
+      case "UNDER_REPAIR" -> List.of("AVAILABLE","RETIRED").contains(to);
+      default -> false;
+    };
+  }
+  public record CreateAssetRequest(@NotNull Long tenantId,@NotBlank String batteryCode,@NotBlank String serialNo,@NotBlank String modelCode,@NotNull Long ownerOrgId,@NotNull Integer soc,@NotNull Double soh) {}
+  public record TransitionRequest(@NotNull Long tenantId,@NotNull BatteryStatus toStatus,@NotBlank String reason,@NotNull Long operatorId) {}
 }
