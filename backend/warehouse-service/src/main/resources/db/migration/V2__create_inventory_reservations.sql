@@ -21,7 +21,7 @@ CREATE TABLE inventory_reservation_item (
  battery_code VARCHAR(64) NOT NULL,
  status VARCHAR(24) NOT NULL DEFAULT 'RESERVED',
  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
- UNIQUE KEY uk_reserved_inventory(tenant_id,inventory_item_id),
+ KEY idx_reserved_inventory(tenant_id,inventory_item_id),
  KEY idx_reservation_items(tenant_id,reservation_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
