@@ -52,6 +52,8 @@ public class AssetController {
   @ResponseStatus(HttpStatus.CREATED)
   public Map<String,Object> create(@Valid @RequestBody CreateAssetRequest r) {
     if(r.soc()<0||r.soc()>100||r.soh()<0||r.soh()>100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"SOC/SOH 必须在 0 到 100 之间");
+    if(jdbc.queryForObject("SELECT COUNT(*) FROM battery_model WHERE tenant_id=? AND model_code=? AND enabled=1",Integer.class,r.tenantId(),r.modelCode())==0)
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"电池型号不存在或已停用");
     try {
       jdbc.update("INSERT INTO battery_asset(tenant_id,battery_code,serial_no,model_code,owner_org_id,lifecycle_status,health_status,soc,soh,version) VALUES(?,?,?,?,?,'REGISTERED','NORMAL',?,?,0)",
         r.tenantId(),r.batteryCode(),r.serialNo(),r.modelCode(),r.ownerOrgId(),r.soc(),r.soh());
