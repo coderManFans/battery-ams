@@ -10,18 +10,16 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
-
-spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 2s
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
 rocketmq:
   name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
   consumer:
