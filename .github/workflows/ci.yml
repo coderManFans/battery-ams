@@ -27,3 +27,16 @@ jobs:
           node-version: '20'
       - run: npm install
       - run: npm run build
+
+  docker-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate full-stack Compose configuration
+        run: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.full.yml config --quiet
+      - name: Validate Dockerfile syntax and build contexts
+        run: |
+          test -f backend/Dockerfile
+          test -f frontend/Dockerfile
+          test -f deploy/mysql/init/01-databases.sql
+          test -f docs/FULL_STACK_DEMO.md
