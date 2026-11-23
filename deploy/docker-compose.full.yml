@@ -1,0 +1,81 @@
+# Run from repository root:
+# docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.full.yml up --build -d
+services:
+  asset-service:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      args: {SERVICE: asset-service}
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      ROCKETMQ_NAME_SERVER: rocketmq-namesrv:9876
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      rocketmq-namesrv: {condition: service_started}
+      rocketmq-broker: {condition: service_started}
+    ports: ["8081:8081"]
+    restart: unless-stopped
+  warehouse-service:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      args: {SERVICE: warehouse-service}
+    environment:
+      DB_HOST: mysql
+      ROCKETMQ_NAME_SERVER: rocketmq-namesrv:9876
+    depends_on:
+      mysql: {condition: service_healthy}
+      rocketmq-namesrv: {condition: service_started}
+      rocketmq-broker: {condition: service_started}
+    ports: ["8082:8082"]
+    restart: unless-stopped
+  workorder-service:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      args: {SERVICE: workorder-service}
+    environment: {DB_HOST: mysql}
+    depends_on:
+      mysql: {condition: service_healthy}
+    ports: ["8083:8083"]
+    restart: unless-stopped
+  preservation-service:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      args: {SERVICE: preservation-service}
+    environment: {DB_HOST: mysql}
+    depends_on:
+      mysql: {condition: service_healthy}
+    ports: ["8084:8084"]
+    restart: unless-stopped
+  telemetry-service:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      args: {SERVICE: telemetry-service}
+    environment: {DB_HOST: mysql}
+    depends_on:
+      mysql: {condition: service_healthy}
+    ports: ["8085:8085"]
+    restart: unless-stopped
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    environment:
+      ASSET_SERVICE_URL: http://asset-service:8081
+      WAREHOUSE_SERVICE_URL: http://warehouse-service:8082
+      WORKORDER_SERVICE_URL: http://workorder-service:8083
+      PRESERVATION_SERVICE_URL: http://preservation-service:8084
+      TELEMETRY_SERVICE_URL: http://telemetry-service:8085
+    depends_on:
+      - asset-service
+      - warehouse-service
+      - workorder-service
+      - preservation-service
+      - telemetry-service
+    ports: ["5173:5173"]
+    restart: unless-stopped
